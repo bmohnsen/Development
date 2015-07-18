@@ -1,0 +1,123 @@
+---
+title: "Essay_Scoring"
+output: pdf_document
+---
+Background
+
+
+
+
+
+Question
+Can short essay questions be automatically scored?
+
+
+Data 
+The training data set is available in the github repository in csv format. The score is in column 1 and the responses in column 2. The responses are parsed in the code.
+
+     Level 6 - level 4 plus two additional responses
+     Level 5 - level 4 plus one additional response
+     Level 4 - include the following
+     	spread out (open the space)
+		cut/pass quickly (fake; use pivot; change speed, pathway, direction)
+     Level 3 - one of the two responses (see level 4)
+     Level 2 - incorrect response
+     Level 1 - no response
+
+
+
+Overview
+
+The goal is to predict the score for each short essay response. This is the "first column variable (6,5,4,3,2,1) in the training set.
+
+
+Code
+```{r}
+##Load libraries
+library(caret)
+library(tm)
+library(ggplot2)
+library(stats)
+```
+
+```{r}
+##Read and clean data
+answers <- read.csv("question.csv")
+answers[,2] <- as.vector(answers[,2])
+for(i in 1:299){
+     answers[i,2] <- removePunctuation(answers[i,2])
+     answers[i,2] <- tolower(answers[i,2])
+}
+```
+
+```{r}
+##Parse responses and explore data
+review_answers <- answers[,2]
+review_source <- VectorSource(review_answers)
+corpus <- Corpus(review_source)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+ans <- DocumentTermMatrix(corpus)
+ans2 <- as.matrix(ans)
+ans3 <- cbind(answers[,1], ans2)
+```
+
+```{r}
+##Create partition
+set.seed (1229)
+inTrain <- createDataPartition(ans3[, 1], p=0.60, list=F)
+tempSet <- ans3[-inTrain, ] 
+trainSet <- ans3[inTrain, ]
+inTrain2 <- createDataPartition(tempSet[, 1], p=0.50, list=F)   
+valSet <- tempSet[-inTrain2, ] 
+testSet <- tempSet[inTrain2, ]   
+```
+
+```{r}
+##Linear Model
+ans_train <- data.frame(trainSet)
+model1 <- lm(V1~., ans_train)
+pred_train <- predict(model1,ans_train)
+cor1 <- cor(round(pred_train), ans_train[,1])
+cor1
+```
+
+Validation Set
+```{r}
+##Run linear model on ValSet
+ans_val <- data.frame(valSet)
+pred_val <- predict(model1,ans_val)
+cor2 <- cor(round(pred_val), ans_val[,1])
+cor2
+```
+
+Test Set
+```{r}
+##Run linear model on test_set
+ans_test <- data.frame(testSet)
+pred_test <- predict(model1,ans_test)
+cor3 <- cor(round(pred_test), ans_test[,1])
+cor3
+```
+
+
+Conclusion
+
+
+
+
+Appendix A
+Shows the relationship between prediction and actual scores for validation data
+
+```{r}
+plot(ans_val[,1],pred_val)
+
+```
+
+Appendix B
+Shows the relationship between prediction and actual scores for test data
+```{r}
+plot(ans_test[,1],pred_test)
+
+```
+
